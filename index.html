@@ -21,11 +21,21 @@
     <!-- GSAP for smooth animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             font-family: 'Inter', sans-serif;
             background-color: #80b3ff;
             color: #f1f5f9;
-            overflow: hidden;
             touch-action: none;
         }
 
@@ -34,8 +44,8 @@
         }
 
         #canvas-container {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             position: absolute;
             top: 0;
             left: 0;
@@ -86,13 +96,13 @@
     </style>
 </head>
 
-<body class="relative w-screen h-screen select-none overflow-hidden">
+<body class="fixed inset-0 w-full h-full h-[100dvh] max-h-[100dvh] select-none overflow-hidden">
 
     <!-- 3D Canvas Container -->
     <div id="canvas-container"></div>
 
     <!-- UI Overlay Layer -->
-    <div class="ui-layer absolute inset-0 flex flex-col justify-between p-3 sm:p-5 pointer-events-none">
+    <div class="ui-layer fixed inset-0 w-full h-full h-[100dvh] flex flex-col justify-between p-3 sm:p-5 pointer-events-none pb-[max(0.75rem,env(safe-area-inset-bottom))]">
 
         <!-- Header / Navigation Bar -->
         <header
@@ -120,10 +130,8 @@
                     </svg>
                 </div>
                 <div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-sm sm:text-base tracking-tight text-white">Rubik Studio</span>
-                        <span
-                            class="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3D</span>
+                    <div class="flex items-center">
+                        <span class="font-bold text-sm sm:text-base tracking-tight text-white">Rubik Studio 3D</span>
                     </div>
                     <p class="text-[11px] text-slate-400 hidden sm:block">Simulador 3D y extractor de piezas</p>
                 </div>
@@ -187,16 +195,17 @@
             <aside id="panel-capas"
                 class="interactive glass-panel p-3 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 w-full sm:w-56 max-h-[48vh] sm:max-h-[85vh] overflow-y-auto hidden transition-all duration-200 shadow-2xl">
                 <!-- Header de Capas: CAPAS 3x3 y botón para minimizar la box a la derecha -->
-                <div id="capas-header" class="flex items-center justify-between border-b border-slate-700/60 pb-2 sm:pb-2.5">
+                <div id="capas-header" onclick="if(window.innerWidth < 640) toggleMinimizeCapas()"
+                    class="flex items-center justify-between border-b border-slate-700/60 pb-2 sm:pb-2.5 cursor-pointer sm:cursor-default">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold text-white uppercase tracking-wider">CAPAS</span>
                         <span
                             class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">3×3</span>
                     </div>
 
-                    <!-- Botón de minimizar box en la otra punta (a la derecha) -->
-                    <button id="capas-minimize-btn" onclick="toggleMinimizeCapas()" title="Minimizar panel de capas"
-                        class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all border border-slate-700/60">
+                    <!-- Botón de minimizar box en la otra punta (Solo visible en mobile) -->
+                    <button id="capas-minimize-btn" onclick="event.stopPropagation(); toggleMinimizeCapas()" title="Minimizar panel de capas"
+                        class="flex sm:hidden w-6 h-6 items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all border border-slate-700/60">
                         <i id="capas-minimize-icon" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
                     </button>
                 </div>
@@ -267,32 +276,44 @@
 
             <!-- Right Panel: Extracted Pieces Management (Full width at bottom on mobile) -->
             <aside id="panel-extraidas"
-                class="interactive glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 w-full sm:w-72 max-h-[48vh] sm:max-h-[80vh] shadow-2xl">
-                <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-2.5">
-                    <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Piezas Extraídas</span>
-                    <span id="extracted-count"
-                        class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold font-mono px-2 py-0.5 rounded-full">0
-                        / 26</span>
-                </div>
+                class="interactive glass-panel p-3 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 w-full sm:w-72 max-h-[48vh] sm:max-h-[80vh] shadow-2xl transition-all duration-200">
+                <div id="extraidas-header" onclick="if(window.innerWidth < 640) toggleMinimizeExtraidas()"
+                    class="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-2.5 cursor-pointer sm:cursor-default">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Piezas Extraídas</span>
+                        <span id="extracted-count"
+                            class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold font-mono px-2 py-0.5 rounded-full">0
+                            / 26</span>
+                    </div>
 
-                <!-- Empty state message (separate from list so it is never deleted from DOM) -->
-                <div id="empty-extraction-msg"
-                    class="text-center py-4 sm:py-7 text-slate-400 text-xs flex flex-col items-center gap-1">
-                    <p class="font-semibold text-slate-200">Haz clic en cualquier pieza</p>
-                    <p class="text-[11px] text-slate-400 max-w-[220px]">Saldrá exactamente la pieza que toques en 3D.
-                    </p>
-                </div>
-
-                <!-- Scrollable list of extracted pieces (only dynamic items are placed here) -->
-                <div id="extracted-list"
-                    class="flex flex-col gap-2 overflow-y-auto max-h-[160px] sm:max-h-[260px] pr-1 hidden"></div>
-
-                <!-- Action button: Devolver piezas -->
-                <div class="pt-0.5">
-                    <button onclick="returnAllPieces()" id="return-all-btn"
-                        class="hidden w-full h-9 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-md flex items-center justify-center">
-                        <span>Devolver piezas</span>
+                    <!-- Botón de minimizar box en la otra punta (Solo visible en mobile) -->
+                    <button id="extraidas-minimize-btn" onclick="event.stopPropagation(); toggleMinimizeExtraidas()" title="Minimizar panel de piezas extraídas"
+                        class="flex sm:hidden w-6 h-6 items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all border border-slate-700/60">
+                        <i id="extraidas-minimize-icon" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
                     </button>
+                </div>
+
+                <!-- Contenido colapsable de la box de piezas extraídas -->
+                <div id="extraidas-body" class="flex flex-col gap-2.5 sm:gap-3 transition-all duration-200">
+                    <!-- Empty state message (separate from list so it is never deleted from DOM) -->
+                    <div id="empty-extraction-msg"
+                        class="text-center py-2.5 sm:py-7 text-slate-400 text-xs flex flex-col items-center gap-1">
+                        <p class="font-semibold text-slate-200">Haz clic en cualquier pieza</p>
+                        <p class="text-[11px] text-slate-400 max-w-[220px]">Saldrá exactamente la pieza que toques en 3D.
+                        </p>
+                    </div>
+
+                    <!-- Scrollable list of extracted pieces (only dynamic items are placed here) -->
+                    <div id="extracted-list"
+                        class="flex flex-col gap-2 overflow-y-auto max-h-[160px] sm:max-h-[260px] pr-1 hidden"></div>
+
+                    <!-- Action button: Devolver piezas -->
+                    <div class="pt-0.5">
+                        <button onclick="returnAllPieces()" id="return-all-btn"
+                            class="hidden w-full h-9 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-md flex items-center justify-center">
+                            <span>Devolver piezas</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -429,6 +450,7 @@
             toggle() {
                 this.muted = !this.muted;
                 localStorage.setItem('rubik_sound_muted', this.muted);
+                if (typeof saveConfig === 'function') saveConfig();
                 this.updateUI();
                 if (!this.muted) {
                     this.playPop();
@@ -645,6 +667,122 @@
         const hoverName = document.getElementById('hover-piece-name');
         const hoverDots = document.getElementById('hover-color-dots');
 
+        // --- 3. Configuration & LocalStorage Persistence ---
+        const CONFIG_STORAGE_KEY = 'rubik_studio_config';
+
+        function saveConfig() {
+            try {
+                const config = {
+                    mode: interactionMode,
+                    capasMinimized: isCapasMinimized,
+                    extraidasMinimized: isExtraidasMinimized,
+                    piecesHidden: areExtractedPiecesHidden,
+                    soundMuted: soundFX ? soundFX.muted : false,
+                    cameraDistance: cameraDistance,
+                    extractedPieceIds: extractedPieces.map(p => p.userData.id)
+                };
+                localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+            } catch (err) {
+                console.warn('LocalStorage error saving config:', err);
+            }
+        }
+
+        function loadConfig() {
+            try {
+                const data = localStorage.getItem(CONFIG_STORAGE_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch (err) {
+                console.warn('LocalStorage error loading config:', err);
+                return null;
+            }
+        }
+
+        function applySavedConfig() {
+            const config = loadConfig();
+            if (!config) return;
+
+            // Audio Mute
+            if (typeof config.soundMuted === 'boolean' && soundFX) {
+                soundFX.muted = config.soundMuted;
+                soundFX.updateUI();
+            }
+
+            // Interaction Mode
+            if (config.mode === 'move' || config.mode === 'extract') {
+                setInteractionMode(config.mode);
+            }
+
+            // Extracted pieces visibility
+            if (typeof config.piecesHidden === 'boolean') {
+                areExtractedPiecesHidden = config.piecesHidden;
+                const btnText = document.getElementById('toggle-hide-text');
+                if (btnText) {
+                    btnText.textContent = areExtractedPiecesHidden ? "Mostrar piezas sustraídas" : "Ocultar piezas sustraídas";
+                }
+            }
+
+            // Capas Minimized state (Solo en mobile)
+            if (window.innerWidth < 640 && typeof config.capasMinimized === 'boolean' && config.capasMinimized) {
+                isCapasMinimized = true;
+                const body = document.getElementById('capas-body');
+                const icon = document.getElementById('capas-minimize-icon');
+                const btn = document.getElementById('capas-minimize-btn');
+                const header = document.getElementById('capas-header');
+                const panel = document.getElementById('panel-capas');
+                if (body) body.classList.add('hidden');
+                if (icon) icon.className = "fa-solid fa-chevron-up text-xs transition-transform duration-200";
+                if (btn) btn.title = "Expandir panel de capas";
+                if (header) header.classList.remove('border-b', 'border-slate-700/60', 'pb-2', 'sm:pb-2.5');
+                if (panel) panel.classList.remove('max-h-[48vh]', 'sm:max-h-[85vh]');
+            }
+
+            // Extraídas Minimized state (Solo en mobile)
+            if (window.innerWidth < 640 && typeof config.extraidasMinimized === 'boolean' && config.extraidasMinimized) {
+                isExtraidasMinimized = true;
+                const body = document.getElementById('extraidas-body');
+                const icon = document.getElementById('extraidas-minimize-icon');
+                const btn = document.getElementById('extraidas-minimize-btn');
+                const header = document.getElementById('extraidas-header');
+                const panel = document.getElementById('panel-extraidas');
+                if (body) body.classList.add('hidden');
+                if (icon) icon.className = "fa-solid fa-chevron-up text-xs transition-transform duration-200";
+                if (btn) btn.title = "Expandir panel de piezas extraídas";
+                if (header) header.classList.remove('border-b', 'border-slate-800/80', 'pb-2', 'sm:pb-2.5');
+                if (panel) panel.classList.remove('max-h-[48vh]', 'sm:max-h-[80vh]');
+            }
+
+            // Camera Distance (Zoom)
+            if (typeof config.cameraDistance === 'number' && config.cameraDistance >= 3.8 && config.cameraDistance <= 18) {
+                cameraDistance = config.cameraDistance;
+                updateCameraPosition();
+            }
+
+            // Restore Extracted Pieces (Persist pieces across page reloads)
+            if (Array.isArray(config.extractedPieceIds) && config.extractedPieceIds.length > 0) {
+                config.extractedPieceIds.forEach((id, extractIndex) => {
+                    const cubieMesh = cubies.find(c => c.userData.id === id);
+                    if (cubieMesh && !cubieMesh.userData.isExtracted) {
+                        cubieMesh.userData.isExtracted = true;
+                        const shelfX = 5.2 + (extractIndex % 2) * 1.5;
+                        const shelfY = 2.4 - Math.floor(extractIndex / 2) * 1.4;
+                        const shelfZ = (extractIndex % 3) * 0.4 - 0.4;
+                        cubieMesh.position.set(shelfX, shelfY, shelfZ);
+                        cubieMesh.rotation.set(
+                            cubieMesh.rotation.x + Math.PI * 0.5,
+                            cubieMesh.rotation.y + Math.PI * 0.4,
+                            cubieMesh.rotation.z
+                        );
+                        const isMobile = window.innerWidth < 640;
+                        if (isMobile || areExtractedPiecesHidden) {
+                            cubieMesh.visible = false;
+                        }
+                        extractedPieces.push(cubieMesh);
+                    }
+                });
+                updateExtractedUI();
+            }
+        }
+
         // --- 4. Initialization ---
         function init() {
             const container = document.getElementById('canvas-container');
@@ -734,6 +872,9 @@
 
             // Set initial mode UI
             setInteractionMode('extract');
+
+            // Apply saved configuration from localStorage
+            applySavedConfig();
 
             // Start animation loop
             animate();
@@ -955,10 +1096,13 @@
             }
         }
 
+        let wheelSaveTimeout = null;
         function onWheel(e) {
             cameraDistance += e.deltaY * 0.006;
             cameraDistance = Math.max(3.8, Math.min(18, cameraDistance));
             updateCameraPosition();
+            clearTimeout(wheelSaveTimeout);
+            wheelSaveTimeout = setTimeout(saveConfig, 400);
         }
 
         function updateCameraPosition() {
@@ -977,7 +1121,8 @@
                 onUpdate: function () {
                     cameraDistance = this.targets()[0].dist;
                     updateCameraPosition();
-                }
+                },
+                onComplete: saveConfig
             });
         }
 
@@ -990,7 +1135,8 @@
                 onUpdate: function () {
                     cameraDistance = this.targets()[0].dist;
                     updateCameraPosition();
-                }
+                },
+                onComplete: saveConfig
             });
         }
 
@@ -1003,7 +1149,8 @@
                 onUpdate: function () {
                     cameraDistance = this.targets()[0].dist;
                     updateCameraPosition();
-                }
+                },
+                onComplete: saveConfig
             });
         }
 
@@ -1067,6 +1214,7 @@
 
         function toggleHideExtractedPieces() {
             areExtractedPiecesHidden = !areExtractedPiecesHidden;
+            saveConfig();
             const btnText = document.getElementById('toggle-hide-text');
 
             if (btnText) {
@@ -1116,6 +1264,7 @@
                         cubieMesh.visible = false;
                     }
                     updateExtractedUI();
+                    saveConfig();
                 }
             });
 
@@ -1164,7 +1313,7 @@
                     isAnimating = false;
                     extractedPieces = extractedPieces.filter(p => p.userData.id !== cubieId);
                     updateExtractedUI();
-                    showToast(`Pieza devuelta: ${cubieMesh.userData.meta.fullName}`, "fa-circle-check text-emerald-400");
+                    saveConfig();
                 }
             });
 
@@ -1179,13 +1328,49 @@
         }
 
         function returnAllPieces() {
-            if (isAnimating || extractedPieces.length === 0) return;
+            if (extractedPieces.length === 0) return;
+            soundFX.playSnap();
+            isAnimating = true;
+
             const toReturn = [...extractedPieces];
-            toReturn.forEach((cubie, idx) => {
-                setTimeout(() => {
-                    returnPiece(cubie.userData.id);
-                }, idx * 120);
+            let completed = 0;
+
+            toReturn.forEach((cubieMesh, idx) => {
+                cubieMesh.userData.isExtracted = false;
+                cubieMesh.visible = true;
+
+                gsap.to(cubieMesh.position, {
+                    x: cubieMesh.userData.homePosition.x,
+                    y: cubieMesh.userData.homePosition.y,
+                    z: cubieMesh.userData.homePosition.z,
+                    delay: idx * 0.07,
+                    duration: 0.5,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        completed++;
+                        if (completed >= toReturn.length) {
+                            isAnimating = false;
+                            extractedPieces = [];
+                            updateExtractedUI();
+                            saveConfig();
+                        }
+                    }
+                });
+
+                gsap.to(cubieMesh.quaternion, {
+                    x: cubieMesh.userData.homeQuaternion.x,
+                    y: cubieMesh.userData.homeQuaternion.y,
+                    z: cubieMesh.userData.homeQuaternion.z,
+                    w: cubieMesh.userData.homeQuaternion.w,
+                    delay: idx * 0.07,
+                    duration: 0.5,
+                    ease: "power2.inOut"
+                });
             });
+
+            extractedPieces = [];
+            updateExtractedUI();
+            saveConfig();
         }
 
         function updateExtractedUI() {
@@ -1361,6 +1546,7 @@
         // --- 12. Mode Toggle & Status UI ---
         let isCapasMinimized = false;
         function toggleMinimizeCapas() {
+            if (window.innerWidth >= 640) return; // En desktop no se puede minimizar
             isCapasMinimized = !isCapasMinimized;
             const body = document.getElementById('capas-body');
             const icon = document.getElementById('capas-minimize-icon');
@@ -1393,6 +1579,45 @@
                     panel.classList.add('max-h-[48vh]', 'sm:max-h-[85vh]');
                 }
             }
+            if (typeof saveConfig === 'function') saveConfig();
+        }
+
+        let isExtraidasMinimized = false;
+        function toggleMinimizeExtraidas() {
+            if (window.innerWidth >= 640) return; // En desktop no se puede minimizar
+            isExtraidasMinimized = !isExtraidasMinimized;
+            const body = document.getElementById('extraidas-body');
+            const icon = document.getElementById('extraidas-minimize-icon');
+            const btn = document.getElementById('extraidas-minimize-btn');
+            const header = document.getElementById('extraidas-header');
+            const panel = document.getElementById('panel-extraidas');
+
+            if (body) {
+                body.classList.toggle('hidden', isExtraidasMinimized);
+            }
+            if (icon) {
+                icon.className = isExtraidasMinimized
+                    ? "fa-solid fa-chevron-up text-xs transition-transform duration-200"
+                    : "fa-solid fa-chevron-down text-xs transition-transform duration-200";
+            }
+            if (btn) {
+                btn.title = isExtraidasMinimized ? "Expandir panel de piezas extraídas" : "Minimizar panel de piezas extraídas";
+            }
+            if (header) {
+                if (isExtraidasMinimized) {
+                    header.classList.remove('border-b', 'border-slate-800/80', 'pb-2', 'sm:pb-2.5');
+                } else {
+                    header.classList.add('border-b', 'border-slate-800/80', 'pb-2', 'sm:pb-2.5');
+                }
+            }
+            if (panel) {
+                if (isExtraidasMinimized) {
+                    panel.classList.remove('max-h-[48vh]', 'sm:max-h-[80vh]');
+                } else {
+                    panel.classList.add('max-h-[48vh]', 'sm:max-h-[80vh]');
+                }
+            }
+            if (typeof saveConfig === 'function') saveConfig();
         }
 
         function setInteractionMode(mode) {
@@ -1417,6 +1642,7 @@
             }
 
             updateShelfActionVisibility();
+            if (typeof saveConfig === 'function') saveConfig();
         }
 
         // --- 13. Shuffle & Reset Helpers ---
@@ -1467,7 +1693,7 @@
             // Reconstruir cubo de forma limpia
             buildRubikCube();
             updateShelfActionVisibility();
-            showToast("Cubo reiniciado al estado inicial", "fa-rotate-left text-amber-400");
+            saveConfig();
         }
 
         function updateMoveCounter() {
@@ -1536,6 +1762,12 @@
             extractedPieces.forEach(p => {
                 p.visible = isMobile ? false : !areExtractedPiecesHidden;
             });
+            if (!isMobile) {
+                const capasBody = document.getElementById('capas-body');
+                if (capasBody) capasBody.classList.remove('hidden');
+                const extraidasBody = document.getElementById('extraidas-body');
+                if (extraidasBody) extraidasBody.classList.remove('hidden');
+            }
         }
 
         // --- 16. Render Loop ---

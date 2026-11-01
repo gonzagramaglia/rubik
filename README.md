@@ -1,38 +1,40 @@
-# 🎲 Rubik Studio 3D • Simulador y Extracción de Piezas
+# 🎲 Rubik Studio 3D • Simulator & Piece Extraction
 
-Un simulador interactivo y realista en 3D de un Cubo de Rubik 3x3 construido con **Three.js**, **GSAP** y **Tailwind CSS**. Permite interactuar con el cubo, rotar capas con notación oficial, y desmontar / extraer físicamente **la pieza exacta que seleccionaste** con animaciones fluidas, efectos de sonido sintetizados y visualización en tiempo real.
-
----
-
-## ✨ Características Principales
-
-- 🎯 **Extracción Exacta de Piezas**: Pasa el cursor sobre cualquier pieza para ver el contorno iluminado en tiempo real y su clasificación exacta (Esquinas, Aristas o Centros). Al hacer clic, **sale exactamente la pieza seleccionada** sin fallos ni desplazamientos aleatorios.
-- 🔁 **Reintegración Suave**: Devuelve piezas individuales al cubo haciendo clic sobre ellas en el espacio 3D, desde el panel lateral, o regresa todas juntas con un solo botón.
-- 🔄 **Giro de Capas Robusto**: Rotación de caras F, B, U, D, L, R (horario y antihorario) con notación oficial del cubo de Rubik, manteniendo la alineación matemática perfecta y sin desfase de coordenadas.
-- 🔀 **Mezclador Aleatorio**: Algoritmo de desordenamiento paso a paso con secuencias realistas.
-- 🔊 **Efectos de Sonido con Web Audio API**: Sonidos sintetizados procedurales de giros mecánicos, extracción (pop) y encastre (snap), sin descargas pesadas y con botón de silenciar.
-- 🎨 **Estilo Realista**: Stickers con esquinas redondeadas generados por canvas procedural, plástico negro mate tipo ABS y reflejos luminosos.
-- 📱 **100% Responsive y Desplegable en Vercel**: Compatible con navegadores de escritorio (Brave, Chrome, Safari, Edge, Firefox) y dispositivos móviles.
+An interactive, realistic 3D Rubik's Cube simulator built with **Three.js**, **GSAP**, and **Tailwind CSS**. It allows you to rotate layers using standard Rubik's notation, and physically disassemble/extract **the exact piece you select** with smooth physics animations, synthesized procedural sound effects, state persistence, and responsive UI.
 
 ---
 
-## ⌨️ Controles y Atajos de Teclado
+## ✨ Key Features
 
-| Tecla | Acción |
+- **Precise Piece Extraction**: Hover over any piece to see its real-time highlighted contour, color stickers, and classification (Corner, Edge, or Center). Clicking extracts **the exact piece selected** with smooth pop-out kinematics.
+- **Seamless Reintegration**: Return individual pieces back into the cube by clicking them in 3D, from the side panel, or restore all extracted pieces at once with the *"Devolver piezas"* action.
+- **Layer Rotations with Official Notation**: Smooth rotations for all faces (F, B, U, D, L, R) clockwise and counter-clockwise, maintaining mathematical precision without coordinate drift.
+- **Random Shuffler**: Step-by-step scrambler algorithm using realistic move sequences.
+- **Procedural Audio (Web Audio API)**: Zero-weight synthesized mechanical turns, pops, and snaps with a quick mute toggle.
+- **Realistic Aesthetics**: Procedurally generated rounded-corner stickers, matte ABS black plastic, dynamic lighting, and soft contact shadows.
+- **LocalStorage Persistence**: Automatically saves your preferences and session state (sound mute, zoom level, interaction mode, and extracted pieces).
+- **100% Responsive & Collapsible UI**: Optimized for both desktop and mobile devices, featuring collapsible bottom sheets and touch-friendly zoom controls.
+
+---
+
+## ⌨️ Controls & Shortcuts
+
+| Key / Input | Action |
 | :--- | :--- |
-| **Clic izquierdo** | Extraer pieza (Modo Extraer) o devolver pieza extraída |
-| **Clic + Arrastrar** | Rotar vista y orbitar cámara 3D |
-| **Scroll / Rueda** | Acercar / Alejar zoom |
-| **Barra Espaciadora** | Alternar entre Modo *Extraer Pieza* y Modo *Girar Caras* |
-| `F`, `B`, `U`, `D`, `L`, `R` | Girar capa correspondiente en sentido horario |
-| `Shift` + `F`, `B`, `U`, `D`, `L`, `R` | Girar capa en sentido antihorario (F', B', etc.) |
-| `S` | Mezclar el cubo aleatoriamente |
+| **Left Click / Tap** | Extract piece (in Extract Mode) or interact with UI |
+| **Click + Drag** | Orbit 3D camera / rotate cube view |
+| **Mouse Wheel / Zoom Buttons** | Zoom In / Out |
+| **Spacebar** | Toggle between *Extract Piece* and *Move Layers* modes |
+| `F`, `B`, `U`, `D`, `L`, `R` | Rotate corresponding face clockwise |
+| `Shift` + `F`, `B`, `U`, `D`, `L`, `R` | Rotate corresponding face counter-clockwise (F', B', etc.) |
+| `S` | Shuffle / scramble the cube |
 
 ---
 
-## 🛠️ Tecnologías
+## 🛠️ Built With
 
-- **Three.js (r128)**: Renderizado 3D WebGL, iluminación, sombras y raycasting preciso.
-- **GSAP (3.12)**: Animaciones e interpolaciones cinemáticas suaves.
-- **Tailwind CSS**: Interfaz moderna con paneles translúcidos (Glassmorphism).
-- **Web Audio API**: Efectos de sonido procedurales sin dependencias externas.
+- **Three.js (r128)**: WebGL 3D rendering, lighting, shadows, and raycasting.
+- **GSAP (3.12)**: Smooth kinematic animations and timeline interpolations.
+- **Tailwind CSS**: Modern glassmorphism UI overlay.
+- **Web Audio API**: Real-time procedural audio effects without external audio assets.
+- **GitHub Actions**: Automated CI/CD deployment to GitHub Pages.

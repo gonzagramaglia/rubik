@@ -13,7 +13,7 @@ An interactive, realistic 3D Rubik's Cube simulator built with **Three.js**, **G
 - **Procedural Audio (Web Audio API)**: Zero-weight synthesized mechanical turns, pops, and snaps with a quick mute toggle.
 - **Realistic Aesthetics**: Procedurally generated rounded-corner stickers, matte ABS black plastic, dynamic lighting, and soft contact shadows.
 - **LocalStorage Persistence**: Automatically saves your preferences and session state (sound mute, zoom level, interaction mode, and extracted pieces).
-- **100% Responsive & Collapsible UI**: Optimized for both desktop and mobile devices, featuring collapsible bottom sheets and touch-friendly zoom controls.
+- **100% Responsive & Collapsible UI**: Optimized for both desktop and mobile devices, featuring 2-finger pinch-to-zoom, collapsible bottom sheets, and touch-friendly zoom controls.
 
 ---
 
@@ -23,7 +23,8 @@ An interactive, realistic 3D Rubik's Cube simulator built with **Three.js**, **G
 | :--- | :--- |
 | **Left Click / Tap** | Extract piece (in Extract Mode) or interact with UI |
 | **Click + Drag** | Orbit 3D camera / rotate cube view |
-| **Mouse Wheel / Zoom Buttons** | Zoom In / Out |
+| **Mouse Wheel / Pinch / Buttons** | Zoom In / Out |
+| **Reset View Button** | Reset camera (White on top, Green on left, Red on right) |
 | **Spacebar** | Toggle between *Extract Piece* and *Move Layers* modes |
 | `F`, `B`, `U`, `D`, `L`, `R` | Rotate corresponding face clockwise |
 | `Shift` + `F`, `B`, `U`, `D`, `L`, `R` | Rotate corresponding face counter-clockwise (F', B', etc.) |

@@ -171,7 +171,7 @@
                 class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all">
                 <i class="fa-solid fa-minus text-sm sm:text-xs"></i>
             </button>
-            <button onclick="resetZoom()" title="Restablecer zoom"
+            <button onclick="resetView()" title="Restablecer vista (Blanco arriba, Verde izq, Rojo der)"
                 class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all">
                 <i class="fa-solid fa-expand text-xs sm:text-[11px]"></i>
             </button>
@@ -652,7 +652,7 @@
         let pointerDownPos = { x: 0, y: 0 };
         let pointerDownTime = 0;
         let previousMousePosition = { x: 0, y: 0 };
-        let cameraAngleX = 0.55, cameraAngleY = -0.45;
+        let cameraAngleX = Math.PI / 4, cameraAngleY = 0.48; // Blanco arriba, Verde izq, Rojo der
         const getDefaultCameraDistance = () => (window.innerWidth < 640 ? 9.8 : 8.6);
         let cameraDistance = getDefaultCameraDistance();
 
@@ -669,9 +669,30 @@
 
         // --- 3. Configuration & LocalStorage Persistence ---
         const CONFIG_STORAGE_KEY = 'rubik_studio_config';
+        let isInitializing = true;
 
         function saveConfig() {
+            if (isInitializing) return;
             try {
+                const cubiesState = cubies.map(c => ({
+                    id: c.userData.id,
+                    px: c.position.x,
+                    py: c.position.y,
+                    pz: c.position.z,
+                    qx: c.quaternion.x,
+                    qy: c.quaternion.y,
+                    qz: c.quaternion.z,
+                    qw: c.quaternion.w,
+                    hx: c.userData.homePosition ? c.userData.homePosition.x : c.position.x,
+                    hy: c.userData.homePosition ? c.userData.homePosition.y : c.position.y,
+                    hz: c.userData.homePosition ? c.userData.homePosition.z : c.position.z,
+                    hqx: c.userData.homeQuaternion ? c.userData.homeQuaternion.x : c.quaternion.x,
+                    hqy: c.userData.homeQuaternion ? c.userData.homeQuaternion.y : c.quaternion.y,
+                    hqz: c.userData.homeQuaternion ? c.userData.homeQuaternion.z : c.quaternion.z,
+                    hqw: c.userData.homeQuaternion ? c.userData.homeQuaternion.w : c.quaternion.w,
+                    isExtracted: !!c.userData.isExtracted
+                }));
+
                 const config = {
                     mode: interactionMode,
                     capasMinimized: isCapasMinimized,
@@ -679,7 +700,11 @@
                     piecesHidden: areExtractedPiecesHidden,
                     soundMuted: soundFX ? soundFX.muted : false,
                     cameraDistance: cameraDistance,
-                    extractedPieceIds: extractedPieces.map(p => p.userData.id)
+                    cameraAngleX: cameraAngleX,
+                    cameraAngleY: cameraAngleY,
+                    moveCount: moveCount,
+                    extractedPieceIds: extractedPieces.map(p => p.userData.id),
+                    cubiesState: cubiesState
                 };
                 localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
             } catch (err) {
@@ -699,7 +724,10 @@
 
         function applySavedConfig() {
             const config = loadConfig();
-            if (!config) return;
+            if (!config) {
+                setInteractionMode('extract');
+                return;
+            }
 
             // Audio Mute
             if (typeof config.soundMuted === 'boolean' && soundFX) {
@@ -707,9 +735,17 @@
                 soundFX.updateUI();
             }
 
+            // Move Counter
+            if (typeof config.moveCount === 'number') {
+                moveCount = config.moveCount;
+                updateMoveCounter();
+            }
+
             // Interaction Mode
             if (config.mode === 'move' || config.mode === 'extract') {
                 setInteractionMode(config.mode);
+            } else {
+                setInteractionMode('extract');
             }
 
             // Extracted pieces visibility
@@ -751,36 +787,70 @@
                 if (panel) panel.classList.remove('max-h-[48vh]', 'sm:max-h-[80vh]');
             }
 
-            // Camera Distance (Zoom)
+            // Camera Angles & Distance
+            if (typeof config.cameraAngleX === 'number' && typeof config.cameraAngleY === 'number') {
+                cameraAngleX = config.cameraAngleX;
+                cameraAngleY = config.cameraAngleY;
+            } else {
+                cameraAngleX = Math.PI / 4;
+                cameraAngleY = 0.48;
+            }
             if (typeof config.cameraDistance === 'number' && config.cameraDistance >= 3.8 && config.cameraDistance <= 18) {
                 cameraDistance = config.cameraDistance;
-                updateCameraPosition();
+            }
+            updateCameraPosition();
+
+            // Restore Cubies Positions, Rotations & Home Coordinates
+            if (Array.isArray(config.cubiesState) && config.cubiesState.length === cubies.length) {
+                config.cubiesState.forEach(state => {
+                    const cubieMesh = cubies.find(c => c.userData.id === state.id);
+                    if (cubieMesh) {
+                        cubieMesh.position.set(state.px, state.py, state.pz);
+                        cubieMesh.quaternion.set(state.qx, state.qy, state.qz, state.qw);
+                        if (typeof state.hx === 'number') {
+                            cubieMesh.userData.homePosition.set(state.hx, state.hy, state.hz);
+                            cubieMesh.userData.homeQuaternion.set(state.hqx, state.hqy, state.hqz, state.hqw);
+                        }
+                        cubieMesh.userData.isExtracted = !!state.isExtracted;
+                        cubieMesh.updateMatrix();
+                        cubieMesh.updateMatrixWorld(true);
+                    }
+                });
             }
 
             // Restore Extracted Pieces (Persist pieces across page reloads)
+            extractedPieces = [];
+            const isMobile = window.innerWidth < 640;
             if (Array.isArray(config.extractedPieceIds) && config.extractedPieceIds.length > 0) {
                 config.extractedPieceIds.forEach((id, extractIndex) => {
                     const cubieMesh = cubies.find(c => c.userData.id === id);
-                    if (cubieMesh && !cubieMesh.userData.isExtracted) {
+                    if (cubieMesh) {
                         cubieMesh.userData.isExtracted = true;
-                        const shelfX = 5.2 + (extractIndex % 2) * 1.5;
-                        const shelfY = 2.4 - Math.floor(extractIndex / 2) * 1.4;
-                        const shelfZ = (extractIndex % 3) * 0.4 - 0.4;
-                        cubieMesh.position.set(shelfX, shelfY, shelfZ);
-                        cubieMesh.rotation.set(
-                            cubieMesh.rotation.x + Math.PI * 0.5,
-                            cubieMesh.rotation.y + Math.PI * 0.4,
-                            cubieMesh.rotation.z
-                        );
-                        const isMobile = window.innerWidth < 640;
+                        if (!config.cubiesState) {
+                            const shelfX = 5.2 + (extractIndex % 2) * 1.5;
+                            const shelfY = 2.4 - Math.floor(extractIndex / 2) * 1.4;
+                            const shelfZ = (extractIndex % 3) * 0.4 - 0.4;
+                            cubieMesh.position.set(shelfX, shelfY, shelfZ);
+                            cubieMesh.rotation.set(
+                                cubieMesh.rotation.x + Math.PI * 0.5,
+                                cubieMesh.rotation.y + Math.PI * 0.4,
+                                cubieMesh.rotation.z
+                            );
+                        }
                         if (isMobile || areExtractedPiecesHidden) {
                             cubieMesh.visible = false;
+                        } else {
+                            cubieMesh.visible = true;
                         }
-                        extractedPieces.push(cubieMesh);
+                        if (!extractedPieces.includes(cubieMesh)) {
+                            extractedPieces.push(cubieMesh);
+                        }
                     }
                 });
-                updateExtractedUI();
             }
+
+            updateExtractedUI();
+            updateShelfActionVisibility();
         }
 
         // --- 4. Initialization ---
@@ -870,11 +940,17 @@
             container.addEventListener('pointerup', onPointerUp);
             container.addEventListener('wheel', onWheel, { passive: true });
 
-            // Set initial mode UI
-            setInteractionMode('extract');
+            // Touch events for 2-finger pinch-to-zoom (expand/reduce)
+            container.addEventListener('touchstart', onTouchStart, { passive: false });
+            container.addEventListener('touchmove', onTouchMove, { passive: false });
+            container.addEventListener('touchend', onTouchEnd, { passive: false });
+            container.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
             // Apply saved configuration from localStorage
             applySavedConfig();
+
+            // Initialization complete: enable persistence for user interactions
+            isInitializing = false;
 
             // Start animation loop
             animate();
@@ -1096,6 +1172,53 @@
             }
         }
 
+        // Multi-touch pinch-to-zoom (expandir / reducir con dos dedos)
+        let initialPinchDistance = null;
+        let initialPinchCameraDistance = null;
+
+        function getTouchDistance(t1, t2) {
+            const dx = t1.clientX - t2.clientX;
+            const dy = t1.clientY - t2.clientY;
+            return Math.hypot(dx, dy);
+        }
+
+        function onTouchStart(e) {
+            if (e.touches.length === 2) {
+                isDragging = false;
+                isPointerDown = false;
+                initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+                initialPinchCameraDistance = cameraDistance;
+                if (e.cancelable) e.preventDefault();
+            }
+        }
+
+        function onTouchMove(e) {
+            if (e.touches.length === 2 && initialPinchDistance !== null) {
+                const currentDist = getTouchDistance(e.touches[0], e.touches[1]);
+                if (currentDist > 0 && initialPinchDistance > 0) {
+                    const scale = currentDist / initialPinchDistance;
+                    const targetDist = initialPinchCameraDistance / scale;
+                    cameraDistance = Math.max(3.8, Math.min(18, targetDist));
+                    updateCameraPosition();
+
+                    clearTimeout(wheelSaveTimeout);
+                    wheelSaveTimeout = setTimeout(saveConfig, 400);
+                }
+                if (e.cancelable) e.preventDefault();
+            }
+        }
+
+        function onTouchEnd(e) {
+            if (e.touches.length < 2 && initialPinchDistance !== null) {
+                initialPinchDistance = null;
+                initialPinchCameraDistance = null;
+                saveConfig();
+            }
+            if (e.touches.length === 1) {
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        }
+
         let wheelSaveTimeout = null;
         function onWheel(e) {
             cameraDistance += e.deltaY * 0.006;
@@ -1140,19 +1263,39 @@
             });
         }
 
-        function resetZoom() {
+        // Restablece el zoom y la orientación de la cámara: Blanco arriba, Verde a la izquierda, Rojo a la derecha
+        function resetView() {
             const defaultDist = getDefaultCameraDistance();
-            gsap.to({ dist: cameraDistance }, {
+            const targetAngleX = Math.PI / 4; // 45°: Verde a la izquierda (+Z), Rojo a la derecha (+X)
+            const targetAngleY = 0.48; // Inclinación superior: Blanco arriba (+Y)
+
+            // Normalizar cameraAngleX a la distancia angular más corta para evitar giros de 360°
+            let currentAngleX = cameraAngleX;
+            while (currentAngleX - targetAngleX > Math.PI) currentAngleX -= Math.PI * 2;
+            while (currentAngleX - targetAngleX < -Math.PI) currentAngleX += Math.PI * 2;
+            cameraAngleX = currentAngleX;
+
+            gsap.to({
+                dist: cameraDistance,
+                angleX: cameraAngleX,
+                angleY: cameraAngleY
+            }, {
                 dist: defaultDist,
-                duration: 0.35,
+                angleX: targetAngleX,
+                angleY: targetAngleY,
+                duration: 0.45,
                 ease: "power2.out",
                 onUpdate: function () {
-                    cameraDistance = this.targets()[0].dist;
+                    const t = this.targets()[0];
+                    cameraDistance = t.dist;
+                    cameraAngleX = t.angleX;
+                    cameraAngleY = t.angleY;
                     updateCameraPosition();
                 },
                 onComplete: saveConfig
             });
         }
+        const resetZoom = resetView;
 
         // --- 9. Click Action: Extract or Return Exact Piece ---
         let extractHighlightTimeout = null;
@@ -1234,6 +1377,13 @@
             cubieMesh.userData.isExtracted = true;
             isAnimating = true;
 
+            const extractIndex = extractedPieces.length;
+            if (!extractedPieces.includes(cubieMesh)) {
+                extractedPieces.push(cubieMesh);
+            }
+            updateExtractedUI();
+            saveConfig();
+
             // Calculate extraction vector:
             // Prefer normal of clicked face in world space; otherwise radial from cube origin
             const normal = hitFace ? hitFace.normal.clone() : new THREE.Vector3();
@@ -1248,7 +1398,6 @@
             const targetPos = currentPos.clone().add(extractDir.multiplyScalar(3.8));
 
             // Floating target further away on the lateral staging shelf
-            const extractIndex = extractedPieces.length;
             const shelfX = 5.2 + (extractIndex % 2) * 1.5;
             const shelfY = 2.4 - Math.floor(extractIndex / 2) * 1.4;
             const shelfZ = (extractIndex % 3) * 0.4 - 0.4;
@@ -1257,7 +1406,6 @@
             const tl = gsap.timeline({
                 onComplete: () => {
                     isAnimating = false;
-                    extractedPieces.push(cubieMesh);
                     // En mobile las piezas sustraídas están ocultas en 3D por defecto; en desktop respeta areExtractedPiecesHidden
                     const isMobile = window.innerWidth < 640;
                     if (isMobile || areExtractedPiecesHidden) {
@@ -1539,6 +1687,7 @@
 
                     scene.remove(pivot);
                     isAnimating = false;
+                    saveConfig();
                 }
             });
         }
@@ -1657,7 +1806,10 @@
             showToast("Mezclando cubo...", "fa-shuffle text-emerald-400");
 
             function nextShuffleStep() {
-                if (movesLeft <= 0) return;
+                if (movesLeft <= 0) {
+                    saveConfig();
+                    return;
+                }
                 const f = faces[Math.floor(Math.random() * faces.length)];
                 const d = dirs[Math.floor(Math.random() * dirs.length)];
                 rotateLayer(f, d);

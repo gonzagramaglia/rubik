@@ -1,0 +1,20 @@
+{
+  "name": "rubik-studio-3d",
+  "version": "1.0.0",
+  "description": "Simulador interactivo 3D de Cubo Rubik con extracción precisa de piezas",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  },
+  "keywords": [
+    "rubik",
+    "threejs",
+    "rubiks-cube",
+    "simulation",
+    "3d",
+    "puzzle"
+  ],
+  "author": "gonzagramaglia",
+  "license": "MIT"
+}

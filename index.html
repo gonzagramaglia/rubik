@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rubik Studio 3D: Simulador y Extractor de Piezas</title>
+    <!-- Clean Minimalist SVG Favicon -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L29 9.5V22.5L16 30L3 22.5V9.5L16 2Z' fill='%230f172a'/%3E%3Cpath d='M16 3.6L27.2 10.1L16 16.6L4.8 10.1L16 3.6Z' fill='%23ffffff'/%3E%3Cpath d='M4.8 11.6L15.2 17.6V28.4L4.8 22.4V11.6Z' fill='%23ff5800'/%3E%3Cpath d='M16.8 17.6L27.2 11.6V22.4L16.8 28.4V17.6Z' fill='%23009b48'/%3E%3Cline x1='8.5' y1='8' x2='19.8' y2='14.5' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='12.3' y1='5.8' x2='23.5' y2='12.3' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='23.5' y1='8' x2='12.3' y2='14.5' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='19.8' y1='5.8' x2='8.5' y2='12.3' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='4.8' y1='15.2' x2='15.2' y2='21.2' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='4.8' y1='18.8' x2='15.2' y2='24.8' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='8.3' y1='13.6' x2='8.3' y2='24.4' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='11.7' y1='15.6' x2='11.7' y2='26.4' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='16.8' y1='21.2' x2='27.2' y2='15.2' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='16.8' y1='24.8' x2='27.2' y2='18.8' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='20.3' y1='15.6' x2='20.3' y2='26.4' stroke='%230f172a' stroke-width='0.8'/%3E%3Cline x1='23.7' y1='13.6' x2='23.7' y2='24.4' stroke='%230f172a' stroke-width='0.8'/%3E%3C/svg%3E">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <!-- Three.js (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #80b3ff;
+            color: #f1f5f9;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-panel-subtle {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body class="relative w-screen h-screen select-none overflow-hidden">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="ui-layer absolute inset-0 flex flex-col justify-between p-3 sm:p-5 pointer-events-none">
+
+        <!-- Header / Navigation Bar -->
+        <header
+            class="relative flex items-center justify-between gap-2 sm:gap-3 glass-panel px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-2xl interactive w-full">
+            <div class="flex items-center gap-2.5 sm:gap-3 shrink-0 mr-auto sm:mr-0">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 32 32" class="w-full h-full drop-shadow-sm" fill="none"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 2L29 9.5V22.5L16 30L3 22.5V9.5L16 2Z" fill="#0f172a" />
+                        <path d="M16 3.6L27.2 10.1L16 16.6L4.8 10.1L16 3.6Z" fill="#ffffff" />
+                        <path d="M4.8 11.6L15.2 17.6V28.4L4.8 22.4V11.6Z" fill="#ff5800" />
+                        <path d="M16.8 17.6L27.2 11.6V22.4L16.8 28.4V17.6Z" fill="#009b48" />
+                        <line x1="8.5" y1="8" x2="19.8" y2="14.5" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="12.3" y1="5.8" x2="23.5" y2="12.3" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="23.5" y1="8" x2="12.3" y2="14.5" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="19.8" y1="5.8" x2="8.5" y2="12.3" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="4.8" y1="15.2" x2="15.2" y2="21.2" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="4.8" y1="18.8" x2="15.2" y2="24.8" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="8.3" y1="13.6" x2="8.3" y2="24.4" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="11.7" y1="15.6" x2="11.7" y2="26.4" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="16.8" y1="21.2" x2="27.2" y2="15.2" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="16.8" y1="24.8" x2="27.2" y2="18.8" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="20.3" y1="15.6" x2="20.3" y2="26.4" stroke="#0f172a" stroke-width="0.8" />
+                        <line x1="23.7" y1="13.6" x2="23.7" y2="24.4" stroke="#0f172a" stroke-width="0.8" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-sm sm:text-base tracking-tight text-white">Rubik Studio</span>
+                        <span
+                            class="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3D</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Simulador 3D y extractor de piezas</p>
+                </div>
+            </div>
+
+            <!-- Mode Selector Switches (Centrado real en desktop usando sm:absolute sm:left-1/2 sm:-translate-x-1/2) -->
+            <div
+                class="h-9 flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-700/60 shadow-inner sm:absolute sm:left-1/2 sm:-translate-x-1/2 shrink-0">
+                <button id="mode-extract" onclick="setInteractionMode('extract')"
+                    class="h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center">
+                    <span class="sm:hidden">Extraer</span>
+                    <span class="hidden sm:inline">Extraer piezas</span>
+                </button>
+                <button id="mode-move" onclick="setInteractionMode('move')"
+                    class="h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center">
+                    <span class="sm:hidden">Mover</span>
+                    <span class="hidden sm:inline">Mover capas</span>
+                </button>
+            </div>
+
+            <!-- Top Right Action Controls: Audio Toggle (Adjacent to switch on mobile, far right on desktop) -->
+            <div class="flex items-center shrink-0">
+                <button id="sound-btn" onclick="toggleAudio()" title="Activar/Silenciar sonido"
+                    class="h-9 w-9 bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 rounded-lg flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-sm">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-xs text-indigo-400"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Zoom Controls below Header (Centrado en mobile y desktop, más abajo y compactos en desktop) -->
+        <div class="flex items-center gap-2 sm:gap-1.5 glass-panel p-1.5 sm:p-1 rounded-xl pointer-events-auto self-center shadow-xl border border-slate-700/60 z-20 mt-4 sm:mt-5">
+            <button onclick="zoomIn()" title="Acercar (Zoom In)"
+                class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all">
+                <i class="fa-solid fa-plus text-sm sm:text-xs"></i>
+            </button>
+            <button onclick="zoomOut()" title="Alejar (Zoom Out)"
+                class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all">
+                <i class="fa-solid fa-minus text-sm sm:text-xs"></i>
+            </button>
+            <button onclick="resetZoom()" title="Restablecer zoom"
+                class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all">
+                <i class="fa-solid fa-expand text-xs sm:text-[11px]"></i>
+            </button>
+        </div>
+
+        <!-- Floating Action Button to the Right of the Cube: Centered Vertically (Hidden when no extracted pieces) -->
+        <div id="shelf-action-container"
+            class="fixed right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 pointer-events-auto hidden">
+            <button id="toggle-hide-btn" onclick="toggleHideExtractedPieces()"
+                title="Ocultar o mostrar piezas sustraídas en el espacio 3D"
+                class="glass-panel px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-800/95 active:scale-95 border border-slate-700/80 shadow-2xl transition-all flex items-center">
+                <span id="toggle-hide-text">Ocultar piezas sustraídas</span>
+            </button>
+        </div>
+
+        <!-- Middle Workspace: Lateral Toolbars on desktop, Bottom full-width docked sheets on mobile -->
+        <div
+            class="flex flex-col sm:flex-row justify-end sm:justify-between items-center mt-auto mb-0 sm:my-auto pointer-events-none w-full gap-2 sm:gap-4">
+
+            <!-- Left Panel: Face Rotation Controls (Visible ONLY in 'Mover' mode - Full width at bottom on mobile) -->
+            <aside id="panel-capas"
+                class="interactive glass-panel p-3 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 w-full sm:w-56 max-h-[48vh] sm:max-h-[85vh] overflow-y-auto hidden transition-all duration-200 shadow-2xl">
+                <!-- Header de Capas: CAPAS 3x3 y botón para minimizar la box a la derecha -->
+                <div id="capas-header" class="flex items-center justify-between border-b border-slate-700/60 pb-2 sm:pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-white uppercase tracking-wider">CAPAS</span>
+                        <span
+                            class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">3×3</span>
+                    </div>
+
+                    <!-- Botón de minimizar box en la otra punta (a la derecha) -->
+                    <button id="capas-minimize-btn" onclick="toggleMinimizeCapas()" title="Minimizar panel de capas"
+                        class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white transition-all border border-slate-700/60">
+                        <i id="capas-minimize-icon" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                    </button>
+                </div>
+
+                <!-- Contenido colapsable de la box de capas -->
+                <div id="capas-body" class="flex flex-col gap-2.5 sm:gap-3 transition-all duration-200">
+                    <div class="grid grid-cols-4 sm:grid-cols-2 gap-1.5 sm:gap-2 font-mono">
+                        <!-- Botón Mezclar cubo (Desktop: encima de las capas ocupando 2 columnas) -->
+                        <button onclick="shuffleCube()" title="Mezclar cubo aleatoriamente (Atajo: S)"
+                            class="hidden sm:flex col-span-2 h-9 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-sans rounded-lg text-xs font-semibold shadow-md transition-all items-center justify-center border border-indigo-400/30">
+                            <span>Mezclar cubo</span>
+                        </button>
+
+                        <button onclick="rotateLayer('F', 1)" title="Front (Frente - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">F</button>
+                        <button onclick="rotateLayer('F', -1)" title="Front' (Frente - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">F'</button>
+
+                        <button onclick="rotateLayer('B', 1)" title="Back (Atrás - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">B</button>
+                        <button onclick="rotateLayer('B', -1)" title="Back' (Atrás - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">B'</button>
+
+                        <button onclick="rotateLayer('U', 1)" title="Up (Arriba - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">U</button>
+                        <button onclick="rotateLayer('U', -1)" title="Up' (Arriba - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">U'</button>
+
+                        <button onclick="rotateLayer('D', 1)" title="Down (Abajo - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">D</button>
+                        <button onclick="rotateLayer('D', -1)" title="Down' (Abajo - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">D'</button>
+
+                        <button onclick="rotateLayer('L', 1)" title="Left (Izquierda - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">L</button>
+                        <button onclick="rotateLayer('L', -1)" title="Left' (Izquierda - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">L'</button>
+
+                        <button onclick="rotateLayer('R', 1)" title="Right (Derecha - Horario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">R</button>
+                        <button onclick="rotateLayer('R', -1)" title="Right' (Derecha - Antihorario)"
+                            class="h-9 sm:h-10 bg-slate-800/80 hover:bg-indigo-600 hover:text-white border border-slate-700/70 rounded-xl text-xs font-bold text-slate-200 active:scale-95 transition-all text-center flex items-center justify-center">R'</button>
+                    </div>
+
+                    <div
+                        class="mt-0.5 pt-2 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                        <span>Movimientos:</span>
+                        <span id="move-counter"
+                            class="font-mono font-bold text-indigo-300 bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-0.5 rounded-md text-xs">0</span>
+                    </div>
+
+                    <!-- Botones de Acción dentro de Capas (En la misma fila en mobile) -->
+                    <div class="grid grid-cols-2 sm:flex sm:flex-col gap-1.5 pt-0.5">
+                        <!-- Botón Mezclar cubo (Mobile: en la misma fila a la par de reiniciar cubo) -->
+                        <button onclick="shuffleCube()" title="Mezclar cubo aleatoriamente (Atajo: S)"
+                            class="flex sm:hidden w-full h-9 py-2 px-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-sans rounded-lg text-xs font-semibold shadow-md transition-all items-center justify-center border border-indigo-400/30">
+                            <span>Mezclar cubo</span>
+                        </button>
+
+                        <!-- Botón Reiniciar cubo (Mismo alto h-9, redondeado rounded-lg) -->
+                        <button onclick="resetCube()" title="Reiniciar cubo"
+                            class="w-full h-9 py-2 px-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-md flex items-center justify-center">
+                            <span>Reiniciar cubo</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Panel: Extracted Pieces Management (Full width at bottom on mobile) -->
+            <aside id="panel-extraidas"
+                class="interactive glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 w-full sm:w-72 max-h-[48vh] sm:max-h-[80vh] shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-2.5">
+                    <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Piezas Extraídas</span>
+                    <span id="extracted-count"
+                        class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold font-mono px-2 py-0.5 rounded-full">0
+                        / 26</span>
+                </div>
+
+                <!-- Empty state message (separate from list so it is never deleted from DOM) -->
+                <div id="empty-extraction-msg"
+                    class="text-center py-4 sm:py-7 text-slate-400 text-xs flex flex-col items-center gap-1">
+                    <p class="font-semibold text-slate-200">Haz clic en cualquier pieza</p>
+                    <p class="text-[11px] text-slate-400 max-w-[220px]">Saldrá exactamente la pieza que toques en 3D.
+                    </p>
+                </div>
+
+                <!-- Scrollable list of extracted pieces (only dynamic items are placed here) -->
+                <div id="extracted-list"
+                    class="flex flex-col gap-2 overflow-y-auto max-h-[160px] sm:max-h-[260px] pr-1 hidden"></div>
+
+                <!-- Action button: Devolver piezas -->
+                <div class="pt-0.5">
+                    <button onclick="returnAllPieces()" id="return-all-btn"
+                        class="hidden w-full h-9 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-md flex items-center justify-center">
+                        <span>Devolver piezas</span>
+                    </button>
+                </div>
+            </aside>
+
+        </div>
+
+        <!-- Floating Piece Hover Tag (Follows Cursor) -->
+        <div id="hover-piece-tag"
+            class="fixed pointer-events-none opacity-0 transition-opacity duration-200 z-30 px-3 py-1.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-indigo-500/50 text-white text-xs font-medium shadow-2xl flex items-center gap-2">
+            <span id="hover-color-dots" class="flex items-center gap-1"></span>
+            <span id="hover-piece-name">Pieza</span>
+        </div>
+
+        <!-- Footer / Shortcuts Bar (Hidden on mobile, Matches Header width in desktop) -->
+        <footer id="app-footer"
+            class="hidden sm:flex items-center justify-center glass-panel px-5 py-2.5 sm:py-3 rounded-2xl interactive w-full shadow-2xl border border-slate-700/60">
+            <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-slate-300">
+                <span class="flex items-center gap-1.5"><kbd
+                        class="bg-slate-800/90 px-2 py-0.5 rounded-md border border-slate-700/80 text-slate-200 font-mono text-[11px] shadow-sm">Arrastrar</kbd>
+                    Girar cubo</span>
+                <span class="flex items-center gap-1.5"><kbd
+                        class="bg-slate-800/90 px-2 py-0.5 rounded-md border border-slate-700/80 text-slate-200 font-mono text-[11px] shadow-sm">Scroll</kbd>
+                    Zoom</span>
+                <span class="flex items-center gap-1.5"><kbd
+                        class="bg-slate-800/90 px-2 py-0.5 rounded-md border border-slate-700/80 text-slate-200 font-mono text-[11px] shadow-sm">Espacio</kbd>
+                    Cambiar modo</span>
+                <span class="flex items-center gap-1.5"><kbd
+                        class="bg-slate-800/90 px-2 py-0.5 rounded-md border border-slate-700/80 text-slate-200 font-mono text-[11px] shadow-sm">S</kbd>
+                    Mezclar</span>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal"
+        class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-slate-900 border border-slate-700/80 w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col gap-4 relative animate-in fade-in zoom-in-95 duration-200">
+            <button onclick="toggleHelpModal()"
+                class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-500/20 p-3 rounded-2xl text-indigo-400 border border-indigo-500/30">
+                    <i class="fa-solid fa-cube text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-white">Guía de Rubik Studio 3D</h3>
+                    <p class="text-xs text-slate-400">Aprende a usar todas las funciones y atajos</p>
+                </div>
+            </div>
+
+            <div
+                class="flex flex-col gap-3 text-xs text-slate-300 leading-relaxed border-y border-slate-800/80 py-4 max-h-[60vh] overflow-y-auto">
+                <div class="flex items-start gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <div class="bg-emerald-500/20 p-2 rounded-xl text-emerald-400 mt-0.5"><i
+                            class="fa-solid fa-hand-pointer"></i></div>
+                    <div>
+                        <strong class="text-white block mb-0.5">Extracción Exacta de Piezas</strong>
+                        Pasa el cursor sobre el cubo: verás el contorno iluminado y el nombre exacto de la pieza
+                        (esquina, arista o centro). Al hacer clic, <strong>sale exactamente esa pieza</strong> flotando
+                        al lateral. Puedes hacer clic en la pieza extraída para regresarla, o usar el panel derecho.
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <div class="bg-indigo-500/20 p-2 rounded-xl text-indigo-400 mt-0.5"><i
+                            class="fa-solid fa-rotate"></i></div>
+                    <div>
+                        <strong class="text-white block mb-0.5">Giro de Capas y Notación Oficial</strong>
+                        Utiliza los botones laterales o el teclado para girar las 6 caras del cubo:
+                        <div class="grid grid-cols-2 gap-1.5 mt-2 font-mono text-[11px] text-slate-300">
+                            <div><kbd class="bg-slate-700 px-1 rounded">F</kbd> Front (Verde)</div>
+                            <div><kbd class="bg-slate-700 px-1 rounded">B</kbd> Back (Azul)</div>
+                            <div><kbd class="bg-slate-700 px-1 rounded">U</kbd> Up (Blanco)</div>
+                            <div><kbd class="bg-slate-700 px-1 rounded">D</kbd> Down (Amarillo)</div>
+                            <div><kbd class="bg-slate-700 px-1 rounded">L</kbd> Left (Naranja)</div>
+                            <div><kbd class="bg-slate-700 px-1 rounded">R</kbd> Right (Rojo)</div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">Presiona <kbd
+                                class="bg-slate-700 px-1 rounded">Shift</kbd> + Tecla para giro antihorario (F', R',
+                            etc.).</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <div class="bg-amber-500/20 p-2 rounded-xl text-amber-400 mt-0.5"><i
+                            class="fa-solid fa-shuffle"></i></div>
+                    <div>
+                        <strong class="text-white block mb-0.5">Mezclador y Reinicio Rápido</strong>
+                        Presiona <kbd class="bg-slate-700 px-1 rounded">S</kbd> para generar una mezcla aleatoria de
+                        movimientos. Presiona <kbd class="bg-slate-700 px-1 rounded">R</kbd> para restaurar el cubo
+                        armado.
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="toggleHelpModal()"
+                class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30">
+                ¡Entendido, a jugar!
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 glass-panel text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs transition-all duration-300 opacity-0 pointer-events-none border border-slate-700/80">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Mensaje</span>
+    </div>
+
+    <!-- Main Simulator Logic Script -->
+    <script>
+        // --- 1. Sound Synthesizer (Web Audio API) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = localStorage.getItem('rubik_sound_muted') === 'true';
+                this.updateUI();
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggle() {
+                this.muted = !this.muted;
+                localStorage.setItem('rubik_sound_muted', this.muted);
+                this.updateUI();
+                if (!this.muted) {
+                    this.playPop();
+                }
+            }
+
+            updateUI() {
+                const icon = document.getElementById('sound-icon');
+                if (!icon) return;
+                if (this.muted) {
+                    icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                } else {
+                    icon.className = 'fa-solid fa-volume-high text-indigo-400';
+                }
+            }
+
+            // Click / Layer turn sound
+            playTurn() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            // Pop / Extract piece sound
+            playPop() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(650, now + 0.12);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            }
+
+            // Snap / Return piece sound
+            playSnap() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(580, now);
+                osc.frequency.exponentialRampToValueAtTime(180, now + 0.09);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.09);
+            }
+        }
+
+        const soundFX = new SoundFX();
+        function toggleAudio() { soundFX.toggle(); }
+
+        // --- 2. Constants & Official Rubik Palette ---
+        const CUBE_SIZE = 3;
+        const ELEMENT_SIZE = 1;
+        const GAP = 0.06;
+        const STEP = ELEMENT_SIZE + GAP; // 1.06
+        const OFFSET = ((CUBE_SIZE - 1) * STEP) / 2; // 1.06
+
+        // Colors mapping:
+        // Right: Red, Left: Orange, Top: White, Bottom: Yellow, Front: Green, Back: Blue
+        const FACE_COLORS = {
+            RIGHT: { hex: '#b71234', name: 'Rojo', dot: 'bg-red-600' },
+            LEFT: { hex: '#ff5800', name: 'Naranja', dot: 'bg-orange-500' },
+            TOP: { hex: '#ffffff', name: 'Blanco', dot: 'bg-white' },
+            BOTTOM: { hex: '#ffd500', name: 'Amarillo', dot: 'bg-yellow-400' },
+            FRONT: { hex: '#009b48', name: 'Verde', dot: 'bg-emerald-600' },
+            BACK: { hex: '#0046ad', name: 'Azul', dot: 'bg-blue-600' },
+            INNER: { hex: '#2d3748', name: 'Interior', dot: 'bg-slate-500' }
+        };
+
+        // Cache for sticker canvas textures
+        const textureCache = {};
+        function getStickerTexture(colorHex, isInner = false) {
+            const key = `${colorHex}_${isInner}`;
+            if (textureCache[key]) return textureCache[key];
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            if (isInner) {
+                // Esclarecimiento elegante de las caras internas (grafito satinado / dark slate)
+                ctx.fillStyle = '#2d3748';
+                ctx.fillRect(0, 0, 256, 256);
+
+                // Relieve mecánico sutil para piezas internas del mecanismo
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(10, 10, 236, 236);
+
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(18, 18, 220, 220);
+
+                // Cavidad de moldeo central clásica de cubos de Rubik
+                ctx.beginPath();
+                ctx.arc(128, 128, 42, 0, Math.PI * 2);
+                ctx.fillStyle = '#242e3e';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                const texture = new THREE.CanvasTexture(canvas);
+                textureCache[key] = texture;
+                return texture;
+            }
+
+            // Borde plástico exterior del cubito
+            ctx.fillStyle = '#111827';
+            ctx.fillRect(0, 0, 256, 256);
+
+            const pad = 16;
+            const size = 256 - pad * 2;
+            const radius = 24;
+
+            // Sticker con esquinas redondeadas
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(pad, pad, size, size, radius);
+            } else {
+                ctx.rect(pad, pad, size, size);
+            }
+            ctx.fillStyle = colorHex;
+            ctx.fill();
+
+            // Gradiente de brillo satinado superior
+            const grad = ctx.createLinearGradient(pad, pad, pad, pad + size);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+            grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.08)');
+            grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.05)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Borde biselado interior
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.stroke();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            textureCache[key] = texture;
+            return texture;
+        }
+
+        // --- 3. Three.js State Variables ---
+        let scene, camera, renderer;
+        let rubikGroup;
+        let cubies = []; // 27 small cubes (Mesh objects only)
+        let extractedPieces = []; // Extracted cubie meshes
+        let interactionMode = 'extract'; // Default mode is 'extract' for immediate fun!
+        let isAnimating = false;
+        let moveCount = 0;
+
+        // Orbit / Camera controls
+        let isDragging = false;
+        let pointerDownPos = { x: 0, y: 0 };
+        let pointerDownTime = 0;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraAngleX = 0.55, cameraAngleY = -0.45;
+        const getDefaultCameraDistance = () => (window.innerWidth < 640 ? 9.8 : 8.6);
+        let cameraDistance = getDefaultCameraDistance();
+
+        // Precision Raycasting & Hover Highlight
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredCubie = null;
+        let selectionBox = null;
+
+        // Floating cursor tag element
+        const hoverTag = document.getElementById('hover-piece-tag');
+        const hoverName = document.getElementById('hover-piece-name');
+        const hoverDots = document.getElementById('hover-color-dots');
+
+        // --- 4. Initialization ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene with user requested background color #80b3ff
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x80b3ff);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            updateCameraPosition();
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lighting Setup optimized for #80b3ff background
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
+            dirLight1.position.set(12, 18, 15);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0xb4d4ff, 0.45);
+            dirLight2.position.set(-12, -15, -12);
+            scene.add(dirLight2);
+
+            const pointLight = new THREE.PointLight(0x6366f1, 0.35, 20);
+            pointLight.position.set(0, 5, 5);
+            scene.add(pointLight);
+
+            // Sombra suave de contacto para arraigar el cubo en el espacio 3D
+            const shadowCanvas = document.createElement('canvas');
+            shadowCanvas.width = 128;
+            shadowCanvas.height = 128;
+            const sCtx = shadowCanvas.getContext('2d');
+            const sGrad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            sGrad.addColorStop(0, 'rgba(15, 30, 65, 0.45)');
+            sGrad.addColorStop(0.4, 'rgba(20, 45, 90, 0.18)');
+            sGrad.addColorStop(1, 'rgba(128, 179, 255, 0)');
+            sCtx.fillStyle = sGrad;
+            sCtx.fillRect(0, 0, 128, 128);
+
+            const shadowGeo = new THREE.PlaneGeometry(6.5, 6.5);
+            const shadowMat = new THREE.MeshBasicMaterial({
+                map: new THREE.CanvasTexture(shadowCanvas),
+                transparent: true,
+                opacity: 0.8,
+                depthWrite: false
+            });
+            const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+            shadowPlane.rotation.x = -Math.PI / 2;
+            shadowPlane.position.y = -2.2;
+            scene.add(shadowPlane);
+
+            // Rubik Main Group
+            rubikGroup = new THREE.Group();
+            scene.add(rubikGroup);
+
+            // Selection / Hover Indicator Box
+            const boxGeo = new THREE.BoxGeometry(ELEMENT_SIZE + 0.05, ELEMENT_SIZE + 0.05, ELEMENT_SIZE + 0.05);
+            const boxEdges = new THREE.EdgesGeometry(boxGeo);
+            selectionBox = new THREE.LineSegments(
+                boxEdges,
+                new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 3, transparent: true, opacity: 0.9 })
+            );
+            selectionBox.visible = false;
+            rubikGroup.add(selectionBox);
+
+            // Build Cube
+            buildRubikCube();
+
+            // Window & Pointer Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', onKeyDown);
+
+            // Pointer events on container
+            container.addEventListener('pointerdown', onPointerDown);
+            container.addEventListener('pointermove', onPointerMove);
+            container.addEventListener('pointerup', onPointerUp);
+            container.addEventListener('wheel', onWheel, { passive: true });
+
+            // Set initial mode UI
+            setInteractionMode('extract');
+
+            // Start animation loop
+            animate();
+        }
+
+        // --- 5. Piece Metadata Classification ---
+        function getPieceClassification(x, y, z) {
+            const faces = [];
+            const colors = [];
+
+            if (x === 2) { faces.push('Right'); colors.push(FACE_COLORS.RIGHT); }
+            if (x === 0) { faces.push('Left'); colors.push(FACE_COLORS.LEFT); }
+            if (y === 2) { faces.push('Top'); colors.push(FACE_COLORS.TOP); }
+            if (y === 0) { faces.push('Bottom'); colors.push(FACE_COLORS.BOTTOM); }
+            if (z === 2) { faces.push('Front'); colors.push(FACE_COLORS.FRONT); }
+            if (z === 0) { faces.push('Back'); colors.push(FACE_COLORS.BACK); }
+
+            let typeName = 'Centro';
+            if (faces.length === 3) typeName = 'Esquina';
+            else if (faces.length === 2) typeName = 'Arista';
+            else if (faces.length === 1) typeName = 'Centro';
+            else typeName = 'Núcleo Central';
+
+            const colorNames = colors.map(c => c.name).join(' • ');
+            const fullName = `${typeName} ${colorNames}`;
+
+            return {
+                type: typeName,
+                faces: faces,
+                colors: colors,
+                fullName: fullName
+            };
+        }
+
+        // --- 6. Build Rubik's Cube Geometry ---
+        function buildRubikCube() {
+            // Remove previous cubies
+            while (rubikGroup.children.length > 0) {
+                rubikGroup.remove(rubikGroup.children[0]);
+            }
+            if (selectionBox) rubikGroup.add(selectionBox);
+
+            cubies = [];
+            extractedPieces = [];
+            updateExtractedUI();
+            moveCount = 0;
+            updateMoveCounter();
+
+            const geometry = new THREE.BoxGeometry(ELEMENT_SIZE, ELEMENT_SIZE, ELEMENT_SIZE);
+
+            for (let x = 0; x < CUBE_SIZE; x++) {
+                for (let y = 0; y < CUBE_SIZE; y++) {
+                    for (let z = 0; z < CUBE_SIZE; z++) {
+
+                        // Materials for [Right, Left, Top, Bottom, Front, Back]
+                        const materials = [
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.RIGHT.hex, x !== 2),
+                                roughness: x !== 2 ? 0.45 : 0.25, metalness: 0.05
+                            }),
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.LEFT.hex, x !== 0),
+                                roughness: x !== 0 ? 0.45 : 0.25, metalness: 0.05
+                            }),
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.TOP.hex, y !== 2),
+                                roughness: y !== 2 ? 0.45 : 0.25, metalness: 0.05
+                            }),
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.BOTTOM.hex, y !== 0),
+                                roughness: y !== 0 ? 0.45 : 0.25, metalness: 0.05
+                            }),
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.FRONT.hex, z !== 2),
+                                roughness: z !== 2 ? 0.45 : 0.25, metalness: 0.05
+                            }),
+                            new THREE.MeshStandardMaterial({
+                                map: getStickerTexture(FACE_COLORS.BACK.hex, z !== 0),
+                                roughness: z !== 0 ? 0.45 : 0.25, metalness: 0.05
+                            })
+                        ];
+
+                        const cubieMesh = new THREE.Mesh(geometry, materials);
+
+                        // Initial grid position
+                        const posX = x * STEP - OFFSET;
+                        const posY = y * STEP - OFFSET;
+                        const posZ = z * STEP - OFFSET;
+
+                        cubieMesh.position.set(posX, posY, posZ);
+
+                        const meta = getPieceClassification(x, y, z);
+
+                        cubieMesh.userData = {
+                            id: `cubie_${x}_${y}_${z}`,
+                            gridPos: { x, y, z },
+                            isExtracted: false,
+                            homePosition: new THREE.Vector3(posX, posY, posZ),
+                            homeQuaternion: new THREE.Quaternion(),
+                            meta: meta
+                        };
+
+                        // Add subtle bevel edge outline for high-end realism
+                        const edges = new THREE.EdgesGeometry(geometry);
+                        const edgeLine = new THREE.LineSegments(
+                            edges,
+                            new THREE.LineBasicMaterial({ color: 0x020617, linewidth: 1.5 })
+                        );
+                        // Prevent raycasting on the line child!
+                        edgeLine.raycast = () => { };
+                        cubieMesh.add(edgeLine);
+
+                        rubikGroup.add(cubieMesh);
+                        cubies.push(cubieMesh);
+                    }
+                }
+            }
+        }
+
+        // --- 7. Precision Raycasting & Hover Logic ---
+        function getIntersectedCubie(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // CRITICAL FIX: Raycast ONLY top-level Mesh objects in 'cubies' with recursive = false!
+            // This guarantees we only hit the exact cubie box geometry and never random wireframes!
+            const intersects = raycaster.intersectObjects(cubies, false);
+
+            if (intersects.length > 0) {
+                return intersects[0];
+            }
+            return null;
+        }
+
+        function updateHoverState(e) {
+            if (isDragging) {
+                hideHoverState();
+                return;
+            }
+
+            const hit = getIntersectedCubie(e);
+
+            if (hit && hit.object && hit.object.userData) {
+                const cubie = hit.object;
+                hoveredCubie = cubie;
+
+                // Position selection box directly around hovered cubie
+                selectionBox.visible = true;
+                selectionBox.position.copy(cubie.position);
+                selectionBox.quaternion.copy(cubie.quaternion);
+
+                // Change cursor
+                document.body.style.cursor = 'pointer';
+
+                // Display floating tooltip tag (Muestra solo los circulitos y si es esquina, arista o centro)
+                const meta = cubie.userData.meta;
+                hoverName.textContent = meta.type;
+                hoverDots.innerHTML = meta.colors.map(c => `<span class="w-2.5 h-2.5 rounded-full ${c.dot} inline-block border border-black/40"></span>`).join('');
+
+                hoverTag.style.left = `${Math.min(window.innerWidth - 220, e.clientX + 16)}px`;
+                hoverTag.style.top = `${Math.min(window.innerHeight - 60, e.clientY + 16)}px`;
+                hoverTag.style.opacity = '1';
+            } else {
+                hideHoverState();
+            }
+        }
+
+        function hideHoverState() {
+            hoveredCubie = null;
+            if (selectionBox) selectionBox.visible = false;
+            document.body.style.cursor = 'default';
+            if (hoverTag) hoverTag.style.opacity = '0';
+        }
+
+        // --- 8. Pointer & Drag vs. Click Handling ---
+        let isPointerDown = false;
+
+        function onPointerDown(e) {
+            if (e.target.closest('.ui-layer') || e.target.closest('#help-modal') || e.target.closest('#shelf-action-container')) return;
+            isPointerDown = true;
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+            pointerDownTime = performance.now();
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+            // Rotar el cubo en 3D (órbita) funciona tanto en modo Extraer como en Mover
+            isDragging = true;
+        }
+
+        function onPointerMove(e) {
+            updateHoverState(e);
+
+            if (!isDragging) return;
+
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+
+            cameraAngleX -= deltaX * 0.007;
+            cameraAngleY += deltaY * 0.007;
+
+            // Clamp vertical angle to prevent flipping
+            cameraAngleY = Math.max(-Math.PI / 2 + 0.08, Math.min(Math.PI / 2 - 0.08, cameraAngleY));
+            updateCameraPosition();
+
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function onPointerUp(e) {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+            isDragging = false;
+
+            const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+            const duration = performance.now() - pointerDownTime;
+
+            // If pointer moved less than 6px and under 600ms, it is a deliberate CLICK
+            if (dist < 6 && duration < 600) {
+                handleCubieClick(e);
+            }
+        }
+
+        function onWheel(e) {
+            cameraDistance += e.deltaY * 0.006;
+            cameraDistance = Math.max(3.8, Math.min(18, cameraDistance));
+            updateCameraPosition();
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.position.y = cameraDistance * Math.sin(cameraAngleY);
+            camera.position.z = cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function zoomIn(step = 1.2) {
+            const targetDist = Math.max(3.8, cameraDistance - step);
+            gsap.to({ dist: cameraDistance }, {
+                dist: targetDist,
+                duration: 0.25,
+                ease: "power2.out",
+                onUpdate: function () {
+                    cameraDistance = this.targets()[0].dist;
+                    updateCameraPosition();
+                }
+            });
+        }
+
+        function zoomOut(step = 1.2) {
+            const targetDist = Math.min(18, cameraDistance + step);
+            gsap.to({ dist: cameraDistance }, {
+                dist: targetDist,
+                duration: 0.25,
+                ease: "power2.out",
+                onUpdate: function () {
+                    cameraDistance = this.targets()[0].dist;
+                    updateCameraPosition();
+                }
+            });
+        }
+
+        function resetZoom() {
+            const defaultDist = getDefaultCameraDistance();
+            gsap.to({ dist: cameraDistance }, {
+                dist: defaultDist,
+                duration: 0.35,
+                ease: "power2.out",
+                onUpdate: function () {
+                    cameraDistance = this.targets()[0].dist;
+                    updateCameraPosition();
+                }
+            });
+        }
+
+        // --- 9. Click Action: Extract or Return Exact Piece ---
+        let extractHighlightTimeout = null;
+
+        function flashExtractButton() {
+            const btnExtract = document.getElementById('mode-extract');
+            if (!btnExtract || interactionMode !== 'move') return;
+
+            // Se pone verde durante medio segundo para indicar visualmente el modo extraer
+            btnExtract.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/60 scale-105 flex items-center justify-center";
+
+            clearTimeout(extractHighlightTimeout);
+            extractHighlightTimeout = setTimeout(() => {
+                if (interactionMode === 'move') {
+                    btnExtract.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center";
+                }
+            }, 500);
+        }
+
+        function handleCubieClick(e) {
+            const hit = getIntersectedCubie(e);
+            if (!hit) return;
+
+            const cubieMesh = hit.object;
+
+            if (interactionMode === 'extract') {
+                if (!cubieMesh.userData.isExtracted) {
+                    extractPiece(cubieMesh, hit.face);
+                } else {
+                    returnPiece(cubieMesh.userData.id);
+                }
+            } else {
+                // En modo Mover: no aparece mensaje de toast, el modo extraer del switch se pone verde medio segundo
+                flashExtractButton();
+            }
+        }
+
+        // --- 10. Piece Extraction & Reintegration ---
+        let areExtractedPiecesHidden = false;
+
+        function updateShelfActionVisibility() {
+            const container = document.getElementById('shelf-action-container');
+            if (!container) return;
+
+            // En mobile: las piezas están ocultas por defecto y el botón siempre se oculta
+            const isMobile = window.innerWidth < 640;
+            if (isMobile) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            // En desktop: si no hay piezas sustraídas (o en mover capas sin piezas), ocultar el botón
+            if (extractedPieces.length === 0) {
+                container.classList.add('hidden');
+            } else {
+                container.classList.remove('hidden');
+            }
+        }
+
+        function toggleHideExtractedPieces() {
+            areExtractedPiecesHidden = !areExtractedPiecesHidden;
+            const btnText = document.getElementById('toggle-hide-text');
+
+            if (btnText) {
+                btnText.textContent = areExtractedPiecesHidden ? "Mostrar piezas sustraídas" : "Ocultar piezas sustraídas";
+            }
+
+            const isMobile = window.innerWidth < 640;
+            extractedPieces.forEach(p => {
+                p.visible = isMobile ? false : !areExtractedPiecesHidden;
+            });
+        }
+
+        function extractPiece(cubieMesh, hitFace) {
+            if (isAnimating) return;
+
+            soundFX.playPop();
+            cubieMesh.userData.isExtracted = true;
+            isAnimating = true;
+
+            // Calculate extraction vector:
+            // Prefer normal of clicked face in world space; otherwise radial from cube origin
+            const normal = hitFace ? hitFace.normal.clone() : new THREE.Vector3();
+            normal.applyQuaternion(cubieMesh.getWorldQuaternion(new THREE.Quaternion()));
+
+            const currentPos = cubieMesh.position.clone();
+            const radial = currentPos.clone().normalize();
+            if (radial.lengthSq() < 0.01) radial.set(0, 1, 0);
+
+            // Pull outwards further away from cube
+            const extractDir = normal.lengthSq() > 0.1 ? normal : radial;
+            const targetPos = currentPos.clone().add(extractDir.multiplyScalar(3.8));
+
+            // Floating target further away on the lateral staging shelf
+            const extractIndex = extractedPieces.length;
+            const shelfX = 5.2 + (extractIndex % 2) * 1.5;
+            const shelfY = 2.4 - Math.floor(extractIndex / 2) * 1.4;
+            const shelfZ = (extractIndex % 3) * 0.4 - 0.4;
+
+            // GSAP smooth multi-stage animation: pop out, then drift to staging shelf
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    isAnimating = false;
+                    extractedPieces.push(cubieMesh);
+                    // En mobile las piezas sustraídas están ocultas en 3D por defecto; en desktop respeta areExtractedPiecesHidden
+                    const isMobile = window.innerWidth < 640;
+                    if (isMobile || areExtractedPiecesHidden) {
+                        cubieMesh.visible = false;
+                    }
+                    updateExtractedUI();
+                }
+            });
+
+            tl.to(cubieMesh.position, {
+                x: targetPos.x,
+                y: targetPos.y,
+                z: targetPos.z,
+                duration: 0.35,
+                ease: "power2.out"
+            });
+
+            tl.to(cubieMesh.position, {
+                x: shelfX,
+                y: shelfY,
+                z: shelfZ,
+                duration: 0.45,
+                ease: "power1.inOut"
+            }, "-=0.1");
+
+            tl.to(cubieMesh.rotation, {
+                x: cubieMesh.rotation.x + Math.PI * 0.5,
+                y: cubieMesh.rotation.y + Math.PI * 0.4,
+                duration: 0.7,
+                ease: "power1.out"
+            }, 0);
+        }
+
+        function returnPiece(cubieId) {
+            if (isAnimating) return;
+            const cubieMesh = cubies.find(c => c.userData.id === cubieId);
+            if (!cubieMesh || !cubieMesh.userData.isExtracted) return;
+
+            soundFX.playSnap();
+            isAnimating = true;
+            cubieMesh.userData.isExtracted = false;
+            cubieMesh.visible = true; // Make sure piece is visible when returning
+
+            // Animate back to exact home position and orientation
+            gsap.to(cubieMesh.position, {
+                x: cubieMesh.userData.homePosition.x,
+                y: cubieMesh.userData.homePosition.y,
+                z: cubieMesh.userData.homePosition.z,
+                duration: 0.55,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    isAnimating = false;
+                    extractedPieces = extractedPieces.filter(p => p.userData.id !== cubieId);
+                    updateExtractedUI();
+                    showToast(`Pieza devuelta: ${cubieMesh.userData.meta.fullName}`, "fa-circle-check text-emerald-400");
+                }
+            });
+
+            gsap.to(cubieMesh.quaternion, {
+                x: cubieMesh.userData.homeQuaternion.x,
+                y: cubieMesh.userData.homeQuaternion.y,
+                z: cubieMesh.userData.homeQuaternion.z,
+                w: cubieMesh.userData.homeQuaternion.w,
+                duration: 0.55,
+                ease: "power2.inOut"
+            });
+        }
+
+        function returnAllPieces() {
+            if (isAnimating || extractedPieces.length === 0) return;
+            const toReturn = [...extractedPieces];
+            toReturn.forEach((cubie, idx) => {
+                setTimeout(() => {
+                    returnPiece(cubie.userData.id);
+                }, idx * 120);
+            });
+        }
+
+        function updateExtractedUI() {
+            updateShelfActionVisibility();
+            const listEl = document.getElementById('extracted-list');
+            const countEl = document.getElementById('extracted-count');
+            const returnAllBtn = document.getElementById('return-all-btn');
+            const emptyMsg = document.getElementById('empty-extraction-msg');
+
+            if (countEl) countEl.textContent = `${extractedPieces.length} / 26`;
+
+            if (extractedPieces.length === 0) {
+                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                if (returnAllBtn) returnAllBtn.classList.add('hidden');
+                if (listEl) {
+                    listEl.classList.add('hidden');
+                    listEl.innerHTML = '';
+                }
+            } else {
+                if (emptyMsg) emptyMsg.classList.add('hidden');
+                if (returnAllBtn) returnAllBtn.classList.remove('hidden');
+                if (listEl) {
+                    listEl.classList.remove('hidden');
+                    listEl.innerHTML = '';
+
+                    extractedPieces.forEach((cubie) => {
+                        const meta = cubie.userData.meta;
+                        const item = document.createElement('div');
+                        item.className = "flex items-center justify-between glass-panel-subtle p-2.5 rounded-xl text-xs transition-all hover:border-indigo-500/50 hover:bg-slate-800/80";
+
+                        const dotsHtml = meta.colors.map(c => `<span class="w-2.5 h-2.5 rounded-full ${c.dot} inline-block border border-black/40"></span>`).join('');
+
+                        item.innerHTML = `
+                            <div class="flex items-center gap-2 overflow-hidden">
+                                <div class="flex items-center gap-1">${dotsHtml}</div>
+                                <span class="font-medium text-slate-200" title="${meta.type}">${meta.type}</span>
+                            </div>
+                            <button onclick="returnPiece('${cubie.userData.id}')" class="shrink-0 px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg transition-all text-[11px] font-semibold flex items-center gap-1 active:scale-95">
+                                Devolver
+                            </button>
+                        `;
+
+                        item.addEventListener('mouseenter', () => {
+                            if (selectionBox) {
+                                selectionBox.visible = true;
+                                selectionBox.position.copy(cubie.position);
+                                selectionBox.quaternion.copy(cubie.quaternion);
+                            }
+                        });
+                        item.addEventListener('mouseleave', () => {
+                            if (selectionBox) selectionBox.visible = false;
+                        });
+
+                        listEl.appendChild(item);
+                    });
+                }
+            }
+        }
+
+        // --- 11. Robust Rubik Layer Rotation ---
+        function snapCoordinate(val) {
+            const possible = [-STEP, 0, STEP];
+            let closest = possible[0];
+            let minDiff = Math.abs(val - closest);
+            for (let i = 1; i < possible.length; i++) {
+                const diff = Math.abs(val - possible[i]);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = possible[i];
+                }
+            }
+            return closest;
+        }
+
+        function rotateLayer(face, direction) {
+            if (isAnimating) return;
+
+            const threshold = STEP * 0.45; // ~0.47
+            const targetCubies = [];
+
+            // Detect all cubies belonging to this layer
+            cubies.forEach(cubie => {
+                const pos = cubie.position;
+                let belongs = false;
+
+                switch (face) {
+                    case 'R': if (pos.x > threshold) belongs = true; break;
+                    case 'L': if (pos.x < -threshold) belongs = true; break;
+                    case 'U': if (pos.y > threshold) belongs = true; break;
+                    case 'D': if (pos.y < -threshold) belongs = true; break;
+                    case 'F': if (pos.z > threshold) belongs = true; break;
+                    case 'B': if (pos.z < -threshold) belongs = true; break;
+                }
+
+                if (belongs) {
+                    targetCubies.push(cubie);
+                }
+            });
+
+            // Prevent rotation if any piece of this layer is currently extracted
+            const hasExtracted = targetCubies.some(c => c.userData.isExtracted);
+            if (hasExtracted) {
+                showToast("⚠️ Regresa las piezas extraídas antes de girar esta capa", "fa-triangle-exclamation text-amber-400");
+                return;
+            }
+
+            soundFX.playTurn();
+            isAnimating = true;
+            moveCount++;
+            updateMoveCounter();
+
+            // Create temporary pivot group at world origin
+            const pivot = new THREE.Group();
+            scene.add(pivot);
+
+            // Attach target cubies into pivot maintaining world transform
+            targetCubies.forEach(cubie => {
+                pivot.attach(cubie);
+            });
+
+            // Determine rotation axis and signed angle
+            const axis = new THREE.Vector3();
+            let angle = (Math.PI / 2) * direction;
+
+            switch (face) {
+                case 'R': axis.set(1, 0, 0); angle = -angle; break;
+                case 'L': axis.set(1, 0, 0); angle = angle; break;
+                case 'U': axis.set(0, 1, 0); angle = -angle; break;
+                case 'D': axis.set(0, 1, 0); angle = angle; break;
+                case 'F': axis.set(0, 0, 1); angle = -angle; break;
+                case 'B': axis.set(0, 0, 1); angle = angle; break;
+            }
+
+            // Animate pivot with GSAP
+            const animObj = { progress: 0 };
+            const qStart = pivot.quaternion.clone();
+            const qTarget = new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(qStart);
+
+            gsap.to(animObj, {
+                progress: 1,
+                duration: 0.32,
+                ease: "power2.inOut",
+                onUpdate: () => {
+                    THREE.Quaternion.slerp(qStart, qTarget, pivot.quaternion, animObj.progress);
+                },
+                onComplete: () => {
+                    pivot.quaternion.copy(qTarget);
+                    pivot.updateMatrixWorld(true);
+
+                    // Reattach each cubie back to rubikGroup with clean snapping
+                    targetCubies.forEach(cubie => {
+                        rubikGroup.attach(cubie);
+
+                        // Snap position to exact grid coordinates to prevent float creep
+                        cubie.position.x = snapCoordinate(cubie.position.x);
+                        cubie.position.y = snapCoordinate(cubie.position.y);
+                        cubie.position.z = snapCoordinate(cubie.position.z);
+
+                        cubie.updateMatrix();
+                        cubie.updateMatrixWorld(true);
+
+                        // Save updated home transform for extraction / reintegration
+                        cubie.userData.homePosition.copy(cubie.position);
+                        cubie.userData.homeQuaternion.copy(cubie.quaternion);
+                    });
+
+                    scene.remove(pivot);
+                    isAnimating = false;
+                }
+            });
+        }
+
+        // --- 12. Mode Toggle & Status UI ---
+        let isCapasMinimized = false;
+        function toggleMinimizeCapas() {
+            isCapasMinimized = !isCapasMinimized;
+            const body = document.getElementById('capas-body');
+            const icon = document.getElementById('capas-minimize-icon');
+            const btn = document.getElementById('capas-minimize-btn');
+            const header = document.getElementById('capas-header');
+            const panel = document.getElementById('panel-capas');
+
+            if (body) {
+                body.classList.toggle('hidden', isCapasMinimized);
+            }
+            if (icon) {
+                icon.className = isCapasMinimized
+                    ? "fa-solid fa-chevron-up text-xs transition-transform duration-200"
+                    : "fa-solid fa-chevron-down text-xs transition-transform duration-200";
+            }
+            if (btn) {
+                btn.title = isCapasMinimized ? "Expandir panel de capas" : "Minimizar panel de capas";
+            }
+            if (header) {
+                if (isCapasMinimized) {
+                    header.classList.remove('border-b', 'border-slate-700/60', 'pb-2', 'sm:pb-2.5');
+                } else {
+                    header.classList.add('border-b', 'border-slate-700/60', 'pb-2', 'sm:pb-2.5');
+                }
+            }
+            if (panel) {
+                if (isCapasMinimized) {
+                    panel.classList.remove('max-h-[48vh]', 'sm:max-h-[85vh]');
+                } else {
+                    panel.classList.add('max-h-[48vh]', 'sm:max-h-[85vh]');
+                }
+            }
+        }
+
+        function setInteractionMode(mode) {
+            clearTimeout(extractHighlightTimeout);
+            if (mode === 'rotate') mode = 'move';
+            interactionMode = mode;
+            const btnMove = document.getElementById('mode-move') || document.getElementById('mode-rotate');
+            const btnExtract = document.getElementById('mode-extract');
+            const panelCapas = document.getElementById('panel-capas');
+            const panelExtraidas = document.getElementById('panel-extraidas');
+
+            if (mode === 'extract') {
+                if (btnExtract) btnExtract.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center";
+                if (btnMove) btnMove.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center";
+                if (panelCapas) panelCapas.classList.add('hidden');
+                if (panelExtraidas) panelExtraidas.classList.remove('hidden');
+            } else {
+                if (btnMove) btnMove.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all bg-indigo-600 text-white shadow-sm flex items-center justify-center";
+                if (btnExtract) btnExtract.className = "h-full px-3 sm:px-4 rounded-md text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center";
+                if (panelCapas) panelCapas.classList.remove('hidden');
+                if (panelExtraidas) panelExtraidas.classList.add('hidden');
+            }
+
+            updateShelfActionVisibility();
+        }
+
+        // --- 13. Shuffle & Reset Helpers ---
+        function shuffleCube() {
+            if (isAnimating) return;
+            returnAllPieces();
+
+            const faces = ['F', 'B', 'U', 'D', 'L', 'R'];
+            const dirs = [1, -1];
+            let movesLeft = 14;
+
+            showToast("Mezclando cubo...", "fa-shuffle text-emerald-400");
+
+            function nextShuffleStep() {
+                if (movesLeft <= 0) return;
+                const f = faces[Math.floor(Math.random() * faces.length)];
+                const d = dirs[Math.floor(Math.random() * dirs.length)];
+                rotateLayer(f, d);
+                movesLeft--;
+                setTimeout(nextShuffleStep, 360);
+            }
+
+            nextShuffleStep();
+        }
+
+        function resetCube() {
+            // Detener cualquier animación en progreso de forma segura
+            cubies.forEach(c => {
+                gsap.killTweensOf(c.position);
+                gsap.killTweensOf(c.rotation);
+                gsap.killTweensOf(c.quaternion);
+            });
+
+            // Limpiar cualquier pivote temporal que haya quedado en la escena
+            if (scene) {
+                const lingeringPivots = scene.children.filter(c => c.type === 'Group' && c !== rubikGroup);
+                lingeringPivots.forEach(p => {
+                    while (p.children.length > 0) {
+                        rubikGroup.attach(p.children[0]);
+                    }
+                    scene.remove(p);
+                });
+            }
+
+            isAnimating = false;
+            hideHoverState();
+
+            // Reconstruir cubo de forma limpia
+            buildRubikCube();
+            updateShelfActionVisibility();
+            showToast("Cubo reiniciado al estado inicial", "fa-rotate-left text-amber-400");
+        }
+
+        function updateMoveCounter() {
+            const counter = document.getElementById('move-counter');
+            if (counter) counter.textContent = moveCount;
+        }
+
+        // --- 14. Keyboard Shortcuts ---
+        function onKeyDown(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key.toUpperCase();
+            const isCounter = e.shiftKey;
+            const dir = isCounter ? -1 : 1;
+
+            if (['F', 'B', 'U', 'D', 'L', 'R'].includes(key)) {
+                e.preventDefault();
+                if (interactionMode !== 'move') {
+                    setInteractionMode('move');
+                }
+                rotateLayer(key, dir);
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                setInteractionMode(interactionMode === 'extract' ? 'move' : 'extract');
+            } else if (key === 'S') {
+                e.preventDefault();
+                shuffleCube();
+            } else if (e.key === 'Escape') {
+                const modal = document.getElementById('help-modal');
+                if (!modal.classList.contains('hidden')) {
+                    toggleHelpModal();
+                }
+            }
+        }
+
+        // --- 15. UI Utilities ---
+        function toggleHelpModal() {
+            const modal = document.getElementById('help-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function showToast(msg, iconClasses = "fa-circle-check text-emerald-400") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = msg;
+            toastIcon.className = `fa-solid ${iconClasses}`;
+
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2600);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateShelfActionVisibility();
+            const isMobile = window.innerWidth < 640;
+            extractedPieces.forEach(p => {
+                p.visible = isMobile ? false : !areExtractedPiecesHidden;
+            });
+        }
+
+        // --- 16. Render Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Gentle floating idle animation for extracted pieces
+            if (!isAnimating && extractedPieces.length > 0) {
+                const time = Date.now() * 0.0025;
+                extractedPieces.forEach((cubie, i) => {
+                    if (cubie.visible) {
+                        cubie.position.y += Math.sin(time + i * 1.2) * 0.0015;
+                        cubie.rotation.y += 0.003;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
